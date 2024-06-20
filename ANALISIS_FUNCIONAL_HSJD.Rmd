@@ -1,0 +1,2055 @@
+---
+title: "ANALISIS FUNCIONAL PROYECTO MICROBIOMA HSJD - FIS"
+author: "Biost3 (Toni Monleón-Getino)"
+output:
+  html_document:
+    fig_height: 6
+    fig_width: 8
+    highlight: tango
+    theme: spacelab
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+    code_folding: hide
+  pdf_document:
+    toc: yes
+  word_document:
+    toc: yes
+editor_options: 
+  markdown: 
+    wrap: 72
+---
+
+```{=html}
+<style>
+body {text-align: justify}
+</style>
+```
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+
+# ORIGEN DE LES DADES
+
+PROJECTE FIS UB-HSJD
+
+<https://drive.google.com/drive/folders/16xYtE8mjm84OUzRUlYwuQskiSA1fj0Lo?usp=sharing>
+
+A dins de la carpeta Function, teniu: • maintable.tsv. En aquest fitxer
+teniu les proteïnes que s'han trobat, la seva descripció, les rutes
+metabòliques i les Gene Ontologies (GO) corresponents. També una columna
+per cada mostra amb el número de reads identificat per cada proteïna. •
+Carpeta diff_analysis. En aquesta carpeta trobareu taules amb els
+resultats de l'anàlisi comparatiu (proteïnes més abundants entre
+condicions experimentals), taules amb les típics gràfics (volcano plots,
+etc.), els resultats d'anàlisi d'enriquiment de GO i de rutes
+metabòliques. Trobareu una estructura de carpetes tipus:
+
+fecal_Control\_\_fecal_CU
+
+Això vol dir que s'han comparat les condicions fecal_Control i fecal_CU.
+Dins d'aquesta carpeta trobareu fitxers tipus:
+
+3a8c19f4d3c528_fecal_Control.xlsx 3a8c19f4d3c528_fecal_CU.xlsx
+
+La referència que s'ha utilitzat és la que es mostra al nom del fitxer.
+És a dir, en el fitxer 3a8c19f4d3c528_fecal_Control.xlsx, la referència
+és fecal_Control.
+
+Los resultados del análisis funcional obtenido por Sequentia Biotech se
+han basado en el análisis: Gene set enrichment analysis (GSEA) (also
+called functional enrichment analysis or pathway enrichment analysis) is
+a method to identify classes of genes or proteins that are
+over-represented in a large set of genes or proteins, and may have an
+association with different phenotypes. NOTA: Els resultats s' han
+filtrat pel nivell de significació (FDR) p\<0.001 i es parteix d' una
+taula filtrada.
+
+#INSTALLATION OF ALL THE PACKAGES
+
+```{r, out.width = '\\maxwidth'}
+# List of packages to install
+packages <- c("miscset", "ggplot2", "ggpubr", "dplyr", "httr", "tidyverse")
+
+# Install packages if not already installed
+install_packages <- packages[!(packages %in% installed.packages()[,"Package"])]
+if (length(install_packages) > 0) {
+  install.packages(install_packages, dependencies = TRUE)
+}
+
+# Load the installed packages
+library(miscset)
+library(ggplot2)
+library(ggpubr)
+library(dplyr)
+library(httr)
+library(tidyverse)
+```
+
+# ANÀLISI DELS RESULTATS DE KEGG
+
+## DESCRIPCIO DE KEGG
+
+Se ha realizado el anàlisis diferencial (enrichment analysis) segun
+ontologies de KEGG y GO. Los resultados se exponent a continuación.
+
+## ANÀLISI ESTADISTICA DEL KEGG
+
+Se realiza un filtro sólo para los grupos:
+"fecal.Control.control_vs_fecal.CU.3.meses"
+"fecal.Control.control_vs_fecal.CU.6.meses"
+"fecal.Control.control_vs_fecal.CU.debut"
+"fecal.Control.control_vs_fecal.EC.6.meses"
+"fecal.CU.6.meses_vs_fecal.CU.debut"
+"fecal.EC.3.meses_vs_fecal.Control.control"
+"fecal.EC.3.meses_vs_fecal.EC.6.meses"
+"fecal.EC.3.meses_vs_fecal.EC.debut"
+"fecal.EC.debut_vs_fecal.EC.6.meses"
+
+```{r, out.width = '\\maxwidth'}
+
+
+#####################REVISAR P-AVLOR < 0.001 Y UP-DOWN DE DONDE HAN SALIDO 27-9-2023###################################
+####################################################
+
+#################################################
+# STATISTICAL ANALYSIS
+################################################
+#UPLOAD UNA VEZ SE HA OBTENIDO EL FICHERO
+#setwd("D:/dropbox2023/Dropbox/otros analisis estadisticos 2015/HSJD 2017 javier martin de carpi SEQUENTIA/estudio_HSJD_2019_2020_fis_bioinformatica/2019_2020/analisis_funcional_2022_andreuPay")
+getwd()
+FILE.KEGG.HSJD <- read.csv("/Users/alex/Downloads/analisis_functional/dataset_kegg.csv") #dades filtrades
+
+#table(FILE.KEGG.HSJD$GROUP) ##CONTAR LOS GRUPOS --> 54
+
+#LOS GRUPOS QUE SALEN SON:
+
+#fecal.Control.control_vs_fecal.CU.3.meses     fecal.Control.control_vs_fecal.CU.6.meses       fecal.Control.control_vs_fecal.CU.debut 
+#24                                            19                                            15 
+#fecal.Control.control_vs_fecal.EC.6.meses      fecal.Control.control_vs_oral.EC.3.meses      fecal.Control.control_vs_oral.EC.6.meses 
+##21                                            23                                            22 
+#fecal.Control.control_vs_oral.EC.debut          fecal.CU.3.meses_vs_fecal.EC.6.meses             fecal.CU.3.meses_vs_oral.CU.debut 
+#31                                            19                                            21 
+#fecal.CU.3.meses_vs_oral.EC.6.meses             fecal.CU.3.meses_vs_oral.EC.debut            fecal.CU.6.meses_vs_fecal.CU.debut 
+#21                                            25                                            11 
+#fecal.CU.6.meses_vs_fecal.EC.6.meses            fecal.CU.6.meses_vs_fecal.EC.debut             fecal.CU.6.meses_vs_oral.CU.debut 
+#18                                            13                                            19 
+#fecal.CU.6.meses_vs_oral.EC.3.meses           fecal.CU.6.meses_vs_oral.EC.6.meses             fecal.CU.6.meses_vs_oral.EC.debut 
+#24                                            21                                            24 
+#fecal.CU.debut_vs_oral.EC.debut     fecal.EC.3.meses_vs_fecal.Control.control          fecal.EC.3.meses_vs_fecal.CU.3.meses 
+#19                                            19                                            21 
+#fecal.EC.3.meses_vs_fecal.CU.6.meses            fecal.EC.3.meses_vs_fecal.CU.debut          fecal.EC.3.meses_vs_fecal.EC.6.meses 
+#16                                            15                                            18 
+#fecal.EC.3.meses_vs_fecal.EC.debut             fecal.EC.3.meses_vs_oral.CU.debut           fecal.EC.3.meses_vs_oral.EC.3.meses 
+#20                                            21                                            20 
+#fecal.EC.3.meses_vs_oral.EC.6.meses             fecal.EC.3.meses_vs_oral.EC.debut             fecal.EC.6.meses_vs_oral.CU.debut 
+#20                                            23                                            23 
+#fecal.EC.6.meses_vs_oral.EC.6.meses             fecal.EC.6.meses_vs_oral.EC.debut            fecal.EC.debut_vs_fecal.CU.3.meses 
+#22                                            28                                            24 
+#fecal.EC.debut_vs_fecal.EC.6.meses               fecal.EC.debut_vs_oral.CU.debut             fecal.EC.debut_vs_oral.EC.3.meses 
+#18                                            23                                            22 
+#fecal.EC.debut_vs_oral.EC.6.meses               fecal.EC.debut_vs_oral.EC.debut oral.Control.control_vs_fecal.Control.control 
+#21                                            32                                            29 
+#oral.Control.control_vs_fecal.CU.3.meses      oral.Control.control_vs_fecal.CU.6.meses        oral.Control.control_vs_fecal.CU.debut 
+#25                                            27                                            19 
+#oral.Control.control_vs_fecal.EC.3.meses      oral.Control.control_vs_fecal.EC.6.meses        oral.Control.control_vs_fecal.EC.debut 
+#22                                            26                                            25 
+#oral.CU.3.meses_vs_fecal.CU.debut           oral.CU.6.meses_vs_fecal.CU.3.meses           oral.CU.6.meses_vs_fecal.CU.6.meses 
+#16                                            19                                            21 
+#oral.CU.6.meses_vs_fecal.EC.6.meses             oral.CU.6.meses_vs_fecal.EC.debut               oral.CU.debut_vs_fecal.CU.debut 
+#20                                            20                                            16 
+#oral.EC.3.meses_vs_fecal.CU.3.meses             oral.EC.3.meses_vs_fecal.CU.debut           oral.EC.3.meses_vs_fecal.EC.6.meses 
+#22                                            22      
+
+
+#UNICOS GRUPOS VALIDOS SON: filtrar les dades
+#"fecal.Control.control_vs_fecal.CU.3.meses"
+#"fecal.Control.control_vs_fecal.CU.6.meses" 
+#"fecal.Control.control_vs_fecal.CU.debut"
+#"fecal.Control.control_vs_fecal.EC.6.meses" 
+#"fecal.CU.6.meses_vs_fecal.CU.debut" 
+#"fecal.EC.3.meses_vs_fecal.Control.control" 
+#"fecal.EC.3.meses_vs_fecal.EC.6.meses" 
+#"fecal.EC.3.meses_vs_fecal.EC.debut" 
+#"fecal.EC.debut_vs_fecal.EC.6.meses" 
+
+FILE.KEGG.HSJD.sel<- FILE.KEGG.HSJD[(FILE.KEGG.HSJD$GROUP=="fecal.Control.control_vs_fecal.CU.3.meses" |
+                                    FILE.KEGG.HSJD$GROUP=="fecal.Control.control_vs_fecal.CU.6.meses" | 
+                                    FILE.KEGG.HSJD$GROUP=="fecal.Control.control_vs_fecal.CU.debut" |
+                                    FILE.KEGG.HSJD$GROUP=="fecal.Control.control_vs_fecal.EC.6.meses" |
+                                    FILE.KEGG.HSJD$GROUP=="fecal.CU.6.meses_vs_fecal.CU.debut" |
+                                    FILE.KEGG.HSJD$GROUP=="fecal.EC.3.meses_vs_fecal.Control.control" |
+                                    FILE.KEGG.HSJD$GROUP=="fecal.EC.3.meses_vs_fecal.EC.6.meses" |
+                                    FILE.KEGG.HSJD$GROUP=="fecal.EC.3.meses_vs_fecal.EC.debut" |
+                                    FILE.KEGG.HSJD$GROUP=="fecal.EC.debut_vs_fecal.EC.6.meses") ,]
+#print("Número de resultados por grupo experimental")                                      
+#table(FILE.KEGG.HSJD.sel$GROUP) ##CONTAR LOS GRUPOS --> 165
+
+
+
+#solo para ver un grupo por ejemplo control vs FECAL-CU
+#FILE.KEGG.HSJD.sel1<- FILE.KEGG.HSJD.sel[(FILE.KEGG.HSJD.sel$GROUP=="fecal.Control.control_vs_fecal.CU.debut" ) ,]
+#table(FILE.KEGG.HSJD.sel1$ONT_DESCRIPTION) ##CONTAR LOS GRUPOS --> 15
+
+
+
+#volcano plot de todo el metabolismo KEGG de todos los grupos
+
+
+#crear un df para el volcano plot
+#vp<-FILE.KEGG.HSJD.sel1
+#calcular la variable log2 foldchange (log base 2)
+#vp$log2FoldChange<- log(vp$EA_VALUE)
+#library(ggplot2)
+#grafico de tipo volcano plot
+#ggplot(data=vp, aes(x=log2FoldChange, y=-log10(FDR), col=KEGG_up_DOWN, label=ONT_DESCRIPTION)) + 
+#  geom_point() + 
+#  theme_minimal() +
+#  geom_text()
+#no sale nada
+```
+
+Es presenten tots els resultats
+
+```{r , out.width = '\\maxwidth'}
+#representar TODAS LAS TABLAS DE RESULTADOS tablas
+
+ggplotGrid(ncol = 2,
+           lapply(c("ONT_DESCRIPTION", "sample",          "GROUP",          "KEGG_up_DOWN"),
+                  function(col) {
+                    ggplot(FILE.KEGG.HSJD.sel, aes_string(col)) + geom_bar() + coord_flip()
+                  }))
+
+ggplotGrid(ncol = 2,
+           lapply(c("ONT_DESCRIPTION"),
+                  function(col) {
+                    ggplot(FILE.KEGG.HSJD.sel, aes_string(col)) + geom_bar() + coord_flip()
+                  }))
+
+```
+
+Descriptiva de los grupos de CU
+
+```{r, out.width = '\\maxwidth'}
+#para cada grupo de CU
+FILE.KEGG.HSJD.sel.CU<- FILE.KEGG.HSJD[(FILE.KEGG.HSJD$GROUP=="fecal.Control.control_vs_fecal.CU.3.meses" |
+                                       FILE.KEGG.HSJD$GROUP=="fecal.Control.control_vs_fecal.CU.6.meses" | 
+                                       FILE.KEGG.HSJD$GROUP=="fecal.Control.control_vs_fecal.CU.debut" |
+                                       FILE.KEGG.HSJD$GROUP=="fecal.CU.6.meses_vs_fecal.CU.debut" ) ,]
+
+#recode group names
+FILE.KEGG.HSJD.sel.CU$GROUP.rec<- case_match(FILE.KEGG.HSJD.sel.CU$GROUP, "fecal.Control.control_vs_fecal.CU.3.meses" ~ "F.C vs F.CU.3M",                       
+           "fecal.Control.control_vs_fecal.CU.6.meses" ~ "F.C vs F.CU.6M",
+           "fecal.Control.control_vs_fecal.CU.debut"~ "F.C vs F.CU.DE",
+           "fecal.CU.6.meses_vs_fecal.CU.debut"~ "F.CU.6M vs F.CU.DE",
+           .default = NA)
+
+first_ancestor_count <- FILE.KEGG.HSJD.sel.CU %>%
+  group_by(GROUP.rec, ONT_DESCRIPTION) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.KEGG.HSJD.sel.CU <- merge(FILE.KEGG.HSJD.sel.CU, first_ancestor_count, by = c("ONT_DESCRIPTION","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.KEGG.HSJD.sel.CU %>%
+  distinct(GROUP.rec,ONT_DESCRIPTION, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.KEGG.HSJD.sel.CU <- left_join(FILE.KEGG.HSJD.sel.CU, unique_combinations, by = "GROUP.rec")
+
+FILE.KEGG.HSJD.sel.CU <- FILE.KEGG.HSJD.sel.CU %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.KEGG.HSJD.sel.CU %>%
+  group_by(GROUP.rec,ONT_DESCRIPTION) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+FILE.KEGG.HSJD.sel.CU <- left_join(FILE.KEGG.HSJD.sel.CU, mean_EA, by = c("GROUP.rec", "ONT_DESCRIPTION"))
+
+
+ggballoonplot(FILE.KEGG.HSJD.sel.CU, x = "KEGG_up_DOWN", y = "ONT_DESCRIPTION", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "KEGG ontologies",
+                                                                                    x= "UP/DOWN",
+                                                                                    title="Goup: CU") +
+# Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 5, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+```
+
+Descriptiva de los grupos de EC
+
+```{r, out.width = '\\maxwidth'}
+#PARA CADA GRUPO EC
+FILE.KEGG.HSJD.sel.EC<- FILE.KEGG.HSJD[(FILE.KEGG.HSJD$GROUP=="fecal.EC.3.meses_vs_fecal.Control.control" |
+                                       FILE.KEGG.HSJD$GROUP=="fecal.EC.3.meses_vs_fecal.EC.6.meses" |
+                                       FILE.KEGG.HSJD$GROUP=="fecal.EC.3.meses_vs_fecal.EC.debut" |
+                                       FILE.KEGG.HSJD$GROUP=="fecal.EC.debut_vs_fecal.EC.6.meses") ,]
+
+#recode group names
+FILE.KEGG.HSJD.sel.EC$GROUP.rec<- case_match(FILE.KEGG.HSJD.sel.EC$GROUP, "fecal.EC.3.meses_vs_fecal.Control.control" ~ "F.EC.3M vs F.C",                           
+           "fecal.EC.3.meses_vs_fecal.EC.6.meses" ~ "F.EC.3M vs F.EC.6M",
+           "fecal.EC.3.meses_vs_fecal.EC.debut"~ "F.EC.3M vs F.EC.DE",
+           "fecal.EC.debut_vs_fecal.EC.6.meses"~ "F.EC.DE vs F.EC.6M",
+           .default = NA)
+
+first_ancestor_count <- FILE.KEGG.HSJD.sel.EC %>%
+  group_by(GROUP.rec, ONT_DESCRIPTION) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.KEGG.HSJD.sel.EC <- merge(FILE.KEGG.HSJD.sel.EC, first_ancestor_count, by = c("ONT_DESCRIPTION","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.KEGG.HSJD.sel.EC %>%
+  distinct(GROUP.rec,ONT_DESCRIPTION, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.KEGG.HSJD.sel.EC <- left_join(FILE.KEGG.HSJD.sel.EC, unique_combinations, by = "GROUP.rec")
+
+FILE.KEGG.HSJD.sel.EC <- FILE.KEGG.HSJD.sel.EC %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.KEGG.HSJD.sel.EC %>%
+  group_by(GROUP.rec,ONT_DESCRIPTION) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+FILE.KEGG.HSJD.sel.EC <- left_join(FILE.KEGG.HSJD.sel.EC, mean_EA, by = c("GROUP.rec", "ONT_DESCRIPTION"))
+
+ggballoonplot(FILE.KEGG.HSJD.sel.EC, x = "KEGG_up_DOWN", y = "ONT_DESCRIPTION", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "KEGG ontologies",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="Goup: EC") +
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 5, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+
+```
+
+```{r, out.width = '\\maxwidth'}
+#PARA CADA GRUPO EC
+FILE.KEGG.HSJD.sel.EC<- FILE.KEGG.HSJD[(FILE.KEGG.HSJD$GROUP=="fecal.EC.3.meses_vs_fecal.Control.control" |
+                                       FILE.KEGG.HSJD$GROUP=="fecal.EC.3.meses_vs_fecal.EC.6.meses" |
+                                       FILE.KEGG.HSJD$GROUP=="fecal.EC.3.meses_vs_fecal.EC.debut" |
+                                       FILE.KEGG.HSJD$GROUP=="fecal.EC.debut_vs_fecal.EC.6.meses") ,]
+
+#recode group names
+FILE.KEGG.HSJD.sel.EC$GROUP.rec<- case_match(FILE.KEGG.HSJD.sel.EC$GROUP, "fecal.EC.3.meses_vs_fecal.Control.control" ~ "F.EC.3M vs F.C",                           
+           "fecal.EC.3.meses_vs_fecal.EC.6.meses" ~ "F.EC.3M vs F.EC.6M",
+           "fecal.EC.3.meses_vs_fecal.EC.debut"~ "F.EC.3M vs F.EC.DE",
+           "fecal.EC.debut_vs_fecal.EC.6.meses"~ "F.EC.DE vs F.EC.6M",
+           .default = NA)
+
+first_ancestor_count <- FILE.KEGG.HSJD.sel.EC %>%
+  group_by(GROUP.rec, interaction_name) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.KEGG.HSJD.sel.EC <- merge(FILE.KEGG.HSJD.sel.EC, first_ancestor_count, by = c("interaction_name","GROUP.rec"), all.x = TRUE)
+
+
+unique_combinations <- FILE.KEGG.HSJD.sel.EC %>%
+  distinct(GROUP.rec,interaction_name, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.KEGG.HSJD.sel.EC <- left_join(FILE.KEGG.HSJD.sel.EC, unique_combinations, by = "GROUP.rec")
+
+FILE.KEGG.HSJD.sel.EC <- FILE.KEGG.HSJD.sel.EC %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.KEGG.HSJD.sel.EC %>%
+  group_by(GROUP.rec,interaction_name) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+FILE.KEGG.HSJD.sel.EC <- left_join(FILE.KEGG.HSJD.sel.EC, mean_EA, by = c("GROUP.rec", "interaction_name"))
+
+ggballoonplot(FILE.KEGG.HSJD.sel.EC, x = "KEGG_up_DOWN", y = "interaction_name", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "KEGG ontologies",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="Goup: EC") +
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 5, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+
+```
+
+```{r, out.width = '\\maxwidth'}
+FILE.KEGG.HSJD.sel.CU<- FILE.KEGG.HSJD[(FILE.KEGG.HSJD$GROUP=="fecal.Control.control_vs_fecal.CU.3.meses" |
+                                       FILE.KEGG.HSJD$GROUP=="fecal.Control.control_vs_fecal.CU.6.meses" | 
+                                       FILE.KEGG.HSJD$GROUP=="fecal.Control.control_vs_fecal.CU.debut" |
+                                       FILE.KEGG.HSJD$GROUP=="fecal.CU.6.meses_vs_fecal.CU.debut" ) ,]
+
+#recode group names
+FILE.KEGG.HSJD.sel.CU$GROUP.rec<- case_match(FILE.KEGG.HSJD.sel.CU$GROUP, "fecal.Control.control_vs_fecal.CU.3.meses" ~ "F.C vs F.CU.3M",                       
+           "fecal.Control.control_vs_fecal.CU.6.meses" ~ "F.C vs F.CU.6M",
+           "fecal.Control.control_vs_fecal.CU.debut"~ "F.C vs F.CU.DE",
+           "fecal.CU.6.meses_vs_fecal.CU.debut"~ "F.CU.6M vs F.CU.DE",
+           .default = NA)
+
+first_ancestor_count <- FILE.KEGG.HSJD.sel.CU %>%
+  group_by(GROUP.rec, interaction_name) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.KEGG.HSJD.sel.CU <- merge(FILE.KEGG.HSJD.sel.CU, first_ancestor_count, by = c("interaction_name","GROUP.rec"), all.x = TRUE)
+
+
+unique_combinations <- FILE.KEGG.HSJD.sel.CU %>%
+  distinct(GROUP.rec,interaction_name, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.KEGG.HSJD.sel.CU <- left_join(FILE.KEGG.HSJD.sel.CU, unique_combinations, by = "GROUP.rec")
+
+FILE.KEGG.HSJD.sel.CU <- FILE.KEGG.HSJD.sel.CU %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.KEGG.HSJD.sel.CU %>%
+  group_by(GROUP.rec,interaction_name) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+FILE.KEGG.HSJD.sel.CU <- left_join(FILE.KEGG.HSJD.sel.CU, mean_EA, by = c("GROUP.rec", "interaction_name"))
+
+ggballoonplot(FILE.KEGG.HSJD.sel.CU, x = "KEGG_up_DOWN", y = "interaction_name", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "KEGG ontologies",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="Goup: EC") +
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 5, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+
+```
+
+```{r, out.width = '\\maxwidth'}
+#PARA CADA GRUPO EC
+FILE.KEGG.HSJD.sel.EC<- FILE.KEGG.HSJD[(FILE.KEGG.HSJD$GROUP=="fecal.EC.3.meses_vs_fecal.Control.control" |
+                                       FILE.KEGG.HSJD$GROUP=="fecal.EC.3.meses_vs_fecal.EC.6.meses" |
+                                       FILE.KEGG.HSJD$GROUP=="fecal.EC.3.meses_vs_fecal.EC.debut" |
+                                       FILE.KEGG.HSJD$GROUP=="fecal.EC.debut_vs_fecal.EC.6.meses") ,]
+
+#recode group names
+FILE.KEGG.HSJD.sel.EC$GROUP.rec<- case_match(FILE.KEGG.HSJD.sel.EC$GROUP, "fecal.EC.3.meses_vs_fecal.Control.control" ~ "F.EC.3M vs F.C",                           
+           "fecal.EC.3.meses_vs_fecal.EC.6.meses" ~ "F.EC.3M vs F.EC.6M",
+           "fecal.EC.3.meses_vs_fecal.EC.debut"~ "F.EC.3M vs F.EC.DE",
+           "fecal.EC.debut_vs_fecal.EC.6.meses"~ "F.EC.DE vs F.EC.6M",
+           .default = NA)
+
+first_ancestor_count <- FILE.KEGG.HSJD.sel.EC %>%
+  group_by(GROUP.rec, reaction_name) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.KEGG.HSJD.sel.EC <- merge(FILE.KEGG.HSJD.sel.EC, first_ancestor_count, by = c("reaction_name","GROUP.rec"), all.x = TRUE)
+
+
+unique_combinations <- FILE.KEGG.HSJD.sel.EC %>%
+  distinct(GROUP.rec,reaction_name, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.KEGG.HSJD.sel.EC <- left_join(FILE.KEGG.HSJD.sel.EC, unique_combinations, by = "GROUP.rec")
+
+FILE.KEGG.HSJD.sel.EC <- FILE.KEGG.HSJD.sel.EC %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.KEGG.HSJD.sel.EC %>%
+  group_by(GROUP.rec,reaction_name) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+FILE.KEGG.HSJD.sel.EC <- left_join(FILE.KEGG.HSJD.sel.EC, mean_EA, by = c("GROUP.rec", "reaction_name"))
+
+ggballoonplot(FILE.KEGG.HSJD.sel.EC, x = "KEGG_up_DOWN", y = "reaction_name", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "KEGG ontologies",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="Goup: EC") +
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 5, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+
+```
+
+```{r, out.width = '\\maxwidth'}
+FILE.KEGG.HSJD.sel.CU<- FILE.KEGG.HSJD[(FILE.KEGG.HSJD$GROUP=="fecal.Control.control_vs_fecal.CU.3.meses" |
+                                       FILE.KEGG.HSJD$GROUP=="fecal.Control.control_vs_fecal.CU.6.meses" | 
+                                       FILE.KEGG.HSJD$GROUP=="fecal.Control.control_vs_fecal.CU.debut" |
+                                       FILE.KEGG.HSJD$GROUP=="fecal.CU.6.meses_vs_fecal.CU.debut" ) ,]
+
+#recode group names
+FILE.KEGG.HSJD.sel.CU$GROUP.rec<- case_match(FILE.KEGG.HSJD.sel.CU$GROUP, "fecal.Control.control_vs_fecal.CU.3.meses" ~ "F.C vs F.CU.3M",                       
+           "fecal.Control.control_vs_fecal.CU.6.meses" ~ "F.C vs F.CU.6M",
+           "fecal.Control.control_vs_fecal.CU.debut"~ "F.C vs F.CU.DE",
+           "fecal.CU.6.meses_vs_fecal.CU.debut"~ "F.CU.6M vs F.CU.DE",
+           .default = NA)
+
+first_ancestor_count <- FILE.KEGG.HSJD.sel.CU %>%
+  group_by(GROUP.rec, reaction_name) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.KEGG.HSJD.sel.CU <- merge(FILE.KEGG.HSJD.sel.CU, first_ancestor_count, by = c("reaction_name","GROUP.rec"), all.x = TRUE)
+
+
+unique_combinations <- FILE.KEGG.HSJD.sel.CU %>%
+  distinct(GROUP.rec,reaction_name, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.KEGG.HSJD.sel.CU <- left_join(FILE.KEGG.HSJD.sel.CU, unique_combinations, by = "GROUP.rec")
+
+FILE.KEGG.HSJD.sel.CU <- FILE.KEGG.HSJD.sel.CU %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.KEGG.HSJD.sel.CU %>%
+  group_by(GROUP.rec,reaction_name) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+FILE.KEGG.HSJD.sel.CU <- left_join(FILE.KEGG.HSJD.sel.CU, mean_EA, by = c("GROUP.rec", "reaction_name"))
+
+ggballoonplot(FILE.KEGG.HSJD.sel.CU, x = "KEGG_up_DOWN", y = "reaction_name", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "KEGG ontologies",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="Goup: EC") +
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 5, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+
+```
+
+```{r, out.width = '\\maxwidth'}
+#de momento descartado, analisis de frecuencias parciales
+########################################################## ANALISIS DE TABLAS DE CONTINGENCIA CON TABLAS AGRUPADAS DE ALBERT MARTIN DONDE SE PRESENTAN LAS SUMAS DE LAS ONTOLOGIES (KEGG = UP + DOWN)
+
+#CU_entries ############################################################
+
+#EJEMPLO CON CU TODOS LOS GRUPOS SIGNIFICATIVOS A UN NIVEL P<0.001 PARA FDR, DONDE SE AGRUPAN ONTOLOGIES DE UP + DOWN Y DEPUES SE REAGRUPAN POR GRUPOS DE ORDEN SUPERIOR PARA KEGG
+#setwd("C:/Users/Antonio Monleon/Dropbox/otros analisis estadisticos 2015/HSJD 2017 javier martin de carpi SEQUENTIA/estudio_HSJD_2019_2020_fis_bioinformatica/2019_2020/analisis_funcional_2022_andreuPay/functional_analysis_albert11_23")
+#CU_entries <- read.csv("CU_entries.csv") #ONTOLOGIES DEL kegg para grupo de CU
+
+#convert data frame in contingency table
+#tabledata <- t(xtabs(COUNT ~ ., CU_entries))
+#chisq.test((tabledata )) #p>0.05 ->0.5823
+#fisher.test(tabledata,simulate.p.value=TRUE ) #p>0.05 -> 0.5823
+
+
+#library(vcdExtra)
+#mosaic(tabledata, gp = shading_max, 
+#       split_vertical = TRUE, 
+#       main="KEGG_CU")
+
+
+#Mosaic plot for the Arthritis data, using shading_max
+#gp = shading_max specifies that color in the plot signals a significant residual at a 90% or 99% significance level, with the more intense shade for 99%. Note that the residuals for the independence model were not large (as shown in the legend), yet the association between Treatment and Improved is highly significant.
+
+#library(ca)
+#fit <- ca(tabledata)
+#print(fit) # basic results
+#summary(fit) # extended results
+#plot(fit) # symmetric map
+#plot(fit, mass = TRUE, contrib = "absolute", map =
+#       "rowgreen", arrows = c(FALSE, TRUE)) # asymmetric map
+
+```
+
+# ANALISIS ESTADISTICO DE LA GO
+
+La Gene Ontology (GO), es una iniciativa fundamental para unificar la
+representación de los atributos de genes y productos génicos en todas
+las especies. Funciona como un sistema de clasificación estandarizado,
+similar a una taxonomía para genes, que permite describir sus funciones
+dentro de las células y organismos. En concreto, organiza la información
+sobre genes en tres categorías principales:
+
+1.  Función molecular: Describe la actividad bioquímica específica de un
+    gen, como la capacidad de una enzima para catalizar una reacción
+    química.
+2.  Componente celular: Indica la localización subcelular de un gen o su
+    producto génico, como la presencia en la membrana celular o el
+    núcleo.
+3.  Proceso biológico: Define el papel de un gen en un proceso biológico
+    más amplio, como la división celular o la respuesta inmunitaria.
+
+Cada término de la GO tiene una identificación única y se relaciona con
+otros términos mediante relaciones jerárquicas (padre-hijo) y no
+jerárquicas (parte-parte), creando una estructura similar a un árbol de
+conocimiento. Esto permite navegar y comparar fácilmente las funciones
+de genes a través de diferentes especies y estudios.
+
+Se parte de un fichero filtado que contiene las GO
+(GOEA\_\_ANALISIS_GO2023_sep23_1_OBTENCIONTABLA_DATOS_RDA.r) . Filtro :
+P-valor \< 0.001 (FDR) Fichero filtrado con GO: FILE.GOEA.HSJD.rda
+
+```{r, out.width = '\\maxwidth'}
+#############################8/11/2023 // 19-9-2023###################
+# STATISTICAL ANALYSIS
+######################################################################
+
+#UPLOAD UNA VEZ SE HA OBTENIDO EL FICHERO
+#setwd("C:/Users/Antonio Monleon/Dropbox/otros analisis estadisticos 2015/HSJD 2017 javier martin de carpi SEQUENTIA/estudio_HSJD_2019_2020_fis_bioinformatica/2019_2020/analisis_funcional_2022_andreuPay")
+#setwd("C:/Users/ub-biost-laptop-01/Dropbox/otros analisis estadisticos 2015/HSJD 2017 javier martin de carpi SEQUENTIA/estudio_HSJD_2019_2020_fis_bioinformatica/2019_2020/analisis_funcional_2022_andreuPay")
+#setwd("C:/Users/Antonio Monleon/Dropbox/otros analisis estadisticos 2015/HSJD 2017 javier martin de carpi SEQUENTIA/estudio_HSJD_2019_2020_fis_bioinformatica/2019_2020/analisis_funcional_2022_andreuPay")
+
+load("/Users/alex/Downloads/analisis_functional/FILE.GOEA.HSJD.rda") #N=24041 OBSERVACIONES
+
+#table(FILE.GOEA.HSJD$GROUP) #N=#CONTAR LOS GRUPOS EXPERIMENTALES --> 93
+#los grupos que salen son:
+#fecal.Control.control_vs_fecal.CU.3.meses     fecal.Control.control_vs_fecal.CU.6.meses       fecal.Control.control_vs_fecal.CU.debut     fecal.Control.control_vs_fecal.EC.6.meses 
+#302                                           234                                           268                                           279 
+#fecal.Control.control_vs_fecal.EC.debut      fecal.Control.control_vs_oral.CU.3.meses      fecal.Control.control_vs_oral.CU.6.meses        fecal.Control.control_vs_oral.CU.debut 
+#332                                           307                                           313                                           336 
+#fecal.Control.control_vs_oral.EC.3.meses      fecal.Control.control_vs_oral.EC.6.meses        fecal.Control.control_vs_oral.EC.debut            fecal.CU.3.meses_vs_fecal.CU.debut 
+#340                                           323                                           338                                           262 
+#fecal.CU.3.meses_vs_fecal.EC.6.meses             fecal.CU.3.meses_vs_oral.CU.debut           fecal.CU.3.meses_vs_oral.EC.6.meses             fecal.CU.3.meses_vs_oral.EC.debut 
+#259                                           330                                           330                                           322 
+#fecal.CU.6.meses_vs_fecal.CU.3.meses            fecal.CU.6.meses_vs_fecal.CU.debut          fecal.CU.6.meses_vs_fecal.EC.6.meses            fecal.CU.6.meses_vs_fecal.EC.debut 
+#131                                           255                                           219                                           270 
+#fecal.CU.6.meses_vs_oral.CU.debut           fecal.CU.6.meses_vs_oral.EC.3.meses           fecal.CU.6.meses_vs_oral.EC.6.meses             fecal.CU.6.meses_vs_oral.EC.debut 
+#301                                           294                                           288                                           294 
+#fecal.CU.debut_vs_oral.EC.debut     fecal.EC.3.meses_vs_fecal.Control.control          fecal.EC.3.meses_vs_fecal.CU.3.meses          fecal.EC.3.meses_vs_fecal.CU.6.meses 
+#298                                           292                                           300                                           254 
+#fecal.EC.3.meses_vs_fecal.CU.debut          fecal.EC.3.meses_vs_fecal.EC.6.meses            fecal.EC.3.meses_vs_fecal.EC.debut           fecal.EC.3.meses_vs_oral.CU.3.meses 
+#250                                           256                                           305                                           298 
+#fecal.EC.3.meses_vs_oral.CU.6.meses             fecal.EC.3.meses_vs_oral.CU.debut           fecal.EC.3.meses_vs_oral.EC.3.meses           fecal.EC.3.meses_vs_oral.EC.6.meses 
+#289                                           314                                           325                                           306 
+#fecal.EC.3.meses_vs_oral.EC.debut            fecal.EC.6.meses_vs_fecal.CU.debut             fecal.EC.6.meses_vs_oral.CU.debut           fecal.EC.6.meses_vs_oral.EC.6.meses 
+#336                                           271                                           321                                           309 
+#fecal.EC.6.meses_vs_oral.EC.debut            fecal.EC.debut_vs_fecal.CU.3.meses              fecal.EC.debut_vs_fecal.CU.debut            fecal.EC.debut_vs_fecal.EC.6.meses 
+#342                                           321                                           242                                           285 
+#fecal.EC.debut_vs_oral.CU.debut             fecal.EC.debut_vs_oral.EC.3.meses             fecal.EC.debut_vs_oral.EC.6.meses               fecal.EC.debut_vs_oral.EC.debut 
+#329                                           339                                           308                                           337 
+#oral.Control.control_vs_fecal.Control.control      oral.Control.control_vs_fecal.CU.3.meses      oral.Control.control_vs_fecal.CU.6.meses        oral.Control.control_vs_fecal.CU.debut 
+#363                                           352                                           325                                           309 
+#oral.Control.control_vs_fecal.EC.3.meses      oral.Control.control_vs_fecal.EC.6.meses        oral.Control.control_vs_fecal.EC.debut       oral.Control.control_vs_oral.CU.3.meses 
+#346                                           343                                           344                                           146 
+#oral.Control.control_vs_oral.CU.6.meses         oral.Control.control_vs_oral.CU.debut       oral.Control.control_vs_oral.EC.3.meses       oral.Control.control_vs_oral.EC.6.meses 
+#157                                           162                                           122                                           126 
+#oral.Control.control_vs_oral.EC.debut           oral.CU.3.meses_vs_fecal.CU.3.meses           oral.CU.3.meses_vs_fecal.CU.6.meses             oral.CU.3.meses_vs_fecal.CU.debut 
+#260                                           294                                           268                                           270 
+#oral.CU.3.meses_vs_fecal.EC.6.meses             oral.CU.3.meses_vs_fecal.EC.debut            oral.CU.3.meses_vs_oral.CU.6.meses              oral.CU.3.meses_vs_oral.CU.debut 
+#292                                           297                                            98                                            97 
+#oral.CU.3.meses_vs_oral.EC.3.meses            oral.CU.3.meses_vs_oral.EC.6.meses              oral.CU.3.meses_vs_oral.EC.debut           oral.CU.6.meses_vs_fecal.CU.3.meses 
+#120                                           108                                           186                                           304 
+#oral.CU.6.meses_vs_fecal.CU.6.meses             oral.CU.6.meses_vs_fecal.CU.debut           oral.CU.6.meses_vs_fecal.EC.6.meses             oral.CU.6.meses_vs_fecal.EC.debut 
+#293                                           252                                           290                                           275 
+#oral.CU.6.meses_vs_oral.CU.debut            oral.CU.6.meses_vs_oral.EC.3.meses            oral.CU.6.meses_vs_oral.EC.6.meses              oral.CU.6.meses_vs_oral.EC.debut 
+#134                                           131                                            87                                           231 
+#oral.CU.debut_vs_fecal.CU.debut              oral.CU.debut_vs_oral.EC.6.meses                oral.CU.debut_vs_oral.EC.debut           oral.EC.3.meses_vs_fecal.CU.3.meses 
+#288                                           121                                           214                                           320 
+#oral.EC.3.meses_vs_fecal.CU.debut           oral.EC.3.meses_vs_fecal.EC.6.meses              oral.EC.3.meses_vs_oral.CU.debut            oral.EC.3.meses_vs_oral.EC.6.meses 
+#278                                           325                                           150                                           135 
+#oral.EC.3.meses_vs_oral.EC.debut             oral.EC.6.meses_vs_fecal.CU.debut              oral.EC.6.meses_vs_oral.EC.debut 
+#180                                           295                                           199 
+
+#frequency(FILE.GOEA.HSJD$GROUP)
+
+#GRUPOS EXPERIMENTALES VALIDOS SON:
+ 
+
+FILE.GOEA.HSJD.sel<- FILE.GOEA.HSJD[(FILE.GOEA.HSJD$GROUP=="fecal.Control.control_vs_fecal.CU.3.meses" |
+                                       FILE.GOEA.HSJD$GROUP=="fecal.Control.control_vs_fecal.CU.6.meses"           |                               
+                                       FILE.GOEA.HSJD$GROUP=="fecal.Control.control_vs_fecal.CU.debut"     |
+                                       FILE.GOEA.HSJD$GROUP=="fecal.Control.control_vs_fecal.EC.6.meses" |
+                                       FILE.GOEA.HSJD$GROUP=="fecal.Control.control_vs_fecal.EC.debut"    |            
+                                       FILE.GOEA.HSJD$GROUP=="fecal.CU.3.meses_vs_fecal.CU.debut" |
+                                       FILE.GOEA.HSJD$GROUP=="fecal.CU.6.meses_vs_fecal.CU.3.meses"  |          
+                                       FILE.GOEA.HSJD$GROUP=="fecal.CU.6.meses_vs_fecal.CU.debut" |
+                                       FILE.GOEA.HSJD$GROUP=="fecal.EC.3.meses_vs_fecal.Control.control" |
+                                       FILE.GOEA.HSJD$GROUP=="fecal.EC.3.meses_vs_fecal.EC.6.meses" |
+                                       FILE.GOEA.HSJD$GROUP=="fecal.EC.3.meses_vs_fecal.EC.debut"  |         
+                                       FILE.GOEA.HSJD$GROUP=="fecal.EC.debut_vs_fecal.EC.6.meses" |
+                                       FILE.GOEA.HSJD$GROUP=="oral.Control.control_vs_oral.CU.3.meses" |
+                                       FILE.GOEA.HSJD$GROUP=="oral.Control.control_vs_oral.CU.6.meses"  |       
+                                       FILE.GOEA.HSJD$GROUP=="oral.Control.control_vs_oral.CU.debut" |
+                                       FILE.GOEA.HSJD$GROUP=="oral.Control.control_vs_oral.EC.3.meses"  |     
+                                       FILE.GOEA.HSJD$GROUP=="oral.Control.control_vs_oral.EC.6.meses" |
+                                       FILE.GOEA.HSJD$GROUP=="oral.Control.control_vs_oral.EC.debut"  |         
+                                       FILE.GOEA.HSJD$GROUP=="oral.CU.3.meses_vs_oral.CU.6.meses" |             
+                                       FILE.GOEA.HSJD$GROUP=="oral.CU.3.meses_vs_oral.CU.debut" |
+                                       FILE.GOEA.HSJD$GROUP=="oral.CU.6.meses_vs_oral.CU.debut" |                     
+                                       FILE.GOEA.HSJD$GROUP=="oral.EC.3.meses_vs_oral.EC.6.meses" |
+                                       FILE.GOEA.HSJD$GROUP=="oral.EC.3.meses_vs_oral.EC.debut"  |           
+                                       FILE.GOEA.HSJD$GROUP=="oral.EC.6.meses_vs_oral.EC.debut"
+                                       ) ,]
+#remove NA
+
+
+FILE.GOEA.HSJD.sel<-FILE.GOEA.HSJD.sel[!is.na(FILE.GOEA.HSJD.sel$ONT_DESCRIPTION),] #no aparecen unos misteriosos NA,
+#write.csv(FILE.GOEA.HSJD.sel, "FILE.GOEA.HSJD.sel.csv", row.names=FALSE)
+
+# Initialize "Disease" column in FILE.GOEA.HSJD.sel with NA
+FILE.GOEA.HSJD.sel$Disease <- NA
+
+# Define diseases of interest
+diseases <- c("CU", "EC")
+
+# Assign disease to "Disease" column if there is a match in the "GROUP" column
+for (disease in diseases) {
+  FILE.GOEA.HSJD.sel$Disease <- ifelse(grepl(disease, FILE.GOEA.HSJD.sel$GROUP), disease, FILE.GOEA.HSJD.sel$Disease)
+}
+
+
+# Define function to retrieve ancestors of ontologies
+
+ancestors <- function(ontologies, groups) {
+  data <- list()
+  contador <- 1
+  
+  for (i in seq_along(ontologies)) {
+    ontology <- as.character(ontologies[i])
+    group <- as.character(groups[i])
+    
+    # Construct URL to retrieve ancestors of ontology
+    url <- sprintf("https://www.ebi.ac.uk/QuickGO/services/ontology/go/terms/%s/ancestors?relations=is_a%%2Cpart_of%%2Coccurs_in%%2Cregulates",
+                   URLencode(ontology, reserved = TRUE))
+    
+    # Perform HTTP request and parse JSON response
+    response <- content(GET(url, accept("application/json")), "parsed")
+    
+    # Check if the ontology is obsolete
+    if (!response$results[[1]]$isObsolete) {
+      ancestors <- response$results[[1]]$ancestors
+      ancestors <- setdiff(ancestors, ontology)
+      # Store data in list
+      data[[contador]] <- data.frame(Group = group, Ancestors = toString(ancestors), Ontology = ontology)
+      contador <- contador + 1
+    }
+  }
+  
+  # Combine dataframes into a single dataframe
+  data_df <- do.call(rbind, data)
+  
+  # Return the dataframe
+  return(data_df)
+}
+
+# Read the generated CSV file
+FILE.GOEA.ANCESTORS <- ancestors(FILE.GOEA.HSJD.sel$ONTOLOGY, FILE.GOEA.HSJD.sel$GROUP)
+
+# Rename columns of the FILE.GOEA.ANCESTORS dataframe
+colnames(FILE.GOEA.ANCESTORS) <- c("GROUP", "ANCESTORS", "ONTOLOGY")
+
+# Process "ANCESTORS" columns in FILE.GOEA.ANCESTORS
+FILE.GOEA.ANCESTORS$ANCESTORS <- lapply(FILE.GOEA.ANCESTORS$ANCESTORS, function(x) {
+  x <- unlist(strsplit(x, ", "))
+  x <- x[!x %in% c("GO:0003674", "GO:0005575", "GO:0008150")]
+  x <- trimws(x)  
+  paste(x, collapse = ", ")
+})
+
+# Combine FILE.GOEA.HSJD.sel and FILE.GOEA.ANCESTORS by "ONTOLOGY"
+FILE.GOEA.HSJD.sel <- merge(FILE.GOEA.HSJD.sel, FILE.GOEA.ANCESTORS[,2:3], by = "ONTOLOGY", all.x = TRUE)
+
+# Summarize FILE.GOEA.HSJD.sel
+FILE.GOEA.HSJD.sel <- FILE.GOEA.HSJD.sel %>%
+  group_by(GROUP, ONTOLOGY, GOEA_up_DOWN) %>%
+  summarise(
+    ONT_DESCRIPTION = unique(ONT_DESCRIPTION),
+    Disease = unique(Disease),
+    EA_VALUE = mean(EA_VALUE),
+    sample = toString(unique(sample)),
+    GOEA_up_DOWN = unique(GOEA_up_DOWN),
+    ANCESTORS = toString(unique(ANCESTORS))
+  ) %>%
+  filter(ANCESTORS != "NA" & ANCESTORS != "")
+
+# Define function to retrieve children of a GO term
+get_children_quickgo <- function(go_id) {
+  # Construct URL to retrieve children of a GO term
+  base_url <- "https://www.ebi.ac.uk/QuickGO/services/ontology/go/terms/"
+  url <- paste0(base_url, go_id, "/children")
+  response <- httr::GET(url)
+  if (httr::http_type(response) == "application/json") {
+    children <- httr::content(response, "parsed")
+    return(children)
+  } else {
+    stop("Error: The response is not in JSON format.")
+  }               
+}
+
+# Define function to retrieve information of children of a GO term
+get_children_info <- function(go_term) {
+  children_quickgo <- get_children_quickgo(go_term)
+  children_list <- children_quickgo$results
+  children_df <- data.frame(id = character(), name = character(), stringsAsFactors = FALSE)
+  for (child_info in children_list[[1]]$children) {
+    child_id <- child_info$id
+    child_name <- child_info$name
+    child_df <- data.frame(id = child_id, name = child_name, stringsAsFactors = FALSE)
+    children_df <- rbind(children_df, child_df)
+  }
+  return(children_df)
+}
+
+# Get children information for different ontology types
+children_info_mf <- get_children_info("GO:0003674")
+children_info_bp <- get_children_info("GO:0008150")
+children_info_cc <- get_children_info("GO:0005575")
+
+# Define function to find the first matching ancestor
+find_first_matching_ancestor <- function(ancestors) {
+  for (ancestor in ancestors) {
+    if (ancestor %in% children_info_mf$id) {
+      return(ancestor)
+    } else if (ancestor %in% children_info_bp$id) {
+      return(ancestor)
+    } else if (ancestor %in% children_info_cc$id) {
+      return(ancestor)
+    }
+  }
+  return(NA)
+}
+
+# Apply function to find the first matching ancestor to FILE.GOEA.HSJD.sel
+FILE.GOEA.HSJD.sel <- FILE.GOEA.HSJD.sel %>%
+  mutate(first_ancestor = sapply(strsplit(ANCESTORS, ", "), find_first_matching_ancestor))
+
+# Define function to get the name of the first ancestor
+get_first_ancestor_name <- function(ancestor_id) {
+  if (ancestor_id %in% children_info_mf$id) {
+    return(children_info_mf$name[children_info_mf$id == ancestor_id])
+  } else if (ancestor_id %in% children_info_bp$id) {
+    return(children_info_bp$name[children_info_bp$id == ancestor_id])
+  } else if (ancestor_id %in% children_info_cc$id) {
+    return(children_info_cc$name[children_info_cc$id == ancestor_id])
+  } else {
+    return(NA)
+  }
+}
+
+# Apply function to get the name of the first ancestor to FILE.GOEA.HSJD.sel
+FILE.GOEA.HSJD.sel <- FILE.GOEA.HSJD.sel %>%
+  mutate(first_ancestor_name = sapply(first_ancestor, get_first_ancestor_name))
+
+# Display first few rows of FILE.GOEA.HSJD.sel
+head(FILE.GOEA.HSJD.sel)
+
+```
+
+```{r, out.width = '\\maxwidth'}
+
+#Filter the file to extract the EC samples
+FILE.GOEA.HSJD.sel.EC <- FILE.GOEA.HSJD.sel[(FILE.GOEA.HSJD.sel$Disease=="EC"),]
+
+#Filter the file to separate the FECAL and ORAL EC samples
+FILE.GOEA.HSJD.sel.EC.FECAL <- FILE.GOEA.HSJD.sel[(FILE.GOEA.HSJD.sel$Disease=="EC" &
+                                                    FILE.GOEA.HSJD.sel$sample=="FECAL"),]
+FILE.GOEA.HSJD.sel.EC.ORAL <- FILE.GOEA.HSJD.sel[(FILE.GOEA.HSJD.sel$Disease=="EC" &
+                                                    FILE.GOEA.HSJD.sel$sample=="ORAL"),]
+
+#Recode the GROUP column names to an easy representation
+FILE.GOEA.HSJD.sel.EC.FECAL$GROUP.rec<- case_match(FILE.GOEA.HSJD.sel.EC.FECAL$GROUP, 
+                                                   "fecal.Control.control_vs_fecal.EC.6.meses" ~ "F.C vs F.EC.6M",                           
+                                                   "fecal.Control.control_vs_fecal.EC.debut" ~ "F.C vs F.EC.DE",
+                                                   "fecal.EC.3.meses_vs_fecal.Control.control"~ "F.EC.3M vs F.C",
+                                                   "fecal.EC.3.meses_vs_fecal.EC.6.meses"~ "F.EC.3M vs F.EC.6M",
+                                                   "fecal.EC.3.meses_vs_fecal.EC.debut"~ "F.EC.3M vs F.EC.DE",
+                                                   "fecal.EC.debut_vs_fecal.EC.6.meses"~ "F.EC.DE vs F.EC.6M",
+                                                   .default = NA)
+
+FILE.GOEA.HSJD.sel.EC.ORAL$GROUP.rec<- case_match(FILE.GOEA.HSJD.sel.EC.ORAL$GROUP, 
+                                                   "oral.Control.control_vs_oral.EC.3.meses" ~ "O.C vs O.EC.3M",                           
+                                                   "oral.Control.control_vs_oral.EC.6.meses" ~ "O.C vs O.EC.6M",
+                                                   "oral.Control.control_vs_oral.EC.debut"~ "O.C vs O.EC.DE",
+                                                   "oral.EC.3.meses_vs_oral.EC.6.meses"~ "O.EC.3M vs O.EC.6M",
+                                                   "oral.EC.3.meses_vs_oral.EC.debut"~ "O.EC.3M vs O.EC.DE",
+                                                   "oral.EC.6.meses_vs_oral.EC.debut"~ "O.EC.6M vs O.EC.DE",
+                                                   .default = NA)
+
+#Separate the ontologies in the 3 biggest groups that you can find in the ont_description column for both files
+FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function<- FILE.GOEA.HSJD.sel.EC.FECAL[(FILE.GOEA.HSJD.sel.EC.FECAL$ONT_DESCRIPTION=="molecular_function" & FILE.GOEA.HSJD.sel.EC.FECAL$EA_VALUE>0 ) ,]
+FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function<- FILE.GOEA.HSJD.sel.EC.FECAL[(FILE.GOEA.HSJD.sel.EC.FECAL$ONT_DESCRIPTION=="cellular_component" & FILE.GOEA.HSJD.sel.EC.FECAL$EA_VALUE>0) ,]
+FILE.GOEA.HSJD.sel.EC.FECAL.biological_process<- FILE.GOEA.HSJD.sel.EC.FECAL[(FILE.GOEA.HSJD.sel.EC.FECAL$ONT_DESCRIPTION=="biological_process" & FILE.GOEA.HSJD.sel.EC.FECAL$EA_VALUE>0) ,]
+
+FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function<- FILE.GOEA.HSJD.sel.EC.ORAL[(FILE.GOEA.HSJD.sel.EC.ORAL$ONT_DESCRIPTION=="molecular_function" & FILE.GOEA.HSJD.sel.EC.ORAL$EA_VALUE>0 ) ,]
+FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function<- FILE.GOEA.HSJD.sel.EC.ORAL[(FILE.GOEA.HSJD.sel.EC.ORAL$ONT_DESCRIPTION=="cellular_component" & FILE.GOEA.HSJD.sel.EC.ORAL$EA_VALUE>0) ,]
+FILE.GOEA.HSJD.sel.EC.ORAL.biological_process<- FILE.GOEA.HSJD.sel.EC.ORAL[(FILE.GOEA.HSJD.sel.EC.ORAL$ONT_DESCRIPTION=="biological_process" & FILE.GOEA.HSJD.sel.EC.ORAL$EA_VALUE>0) ,]
+```
+
+```{r, out.width = '\\maxwidth'}
+
+#Filter the file to extract the CU samples
+FILE.GOEA.HSJD.sel.CU <- FILE.GOEA.HSJD.sel[(FILE.GOEA.HSJD.sel$Disease=="CU"),]
+
+#Filter the file to separate the FECAL and ORAL CU samples
+FILE.GOEA.HSJD.sel.CU.ORAL <- FILE.GOEA.HSJD.sel[(FILE.GOEA.HSJD.sel$Disease=="CU" &
+                                                    FILE.GOEA.HSJD.sel$sample=="ORAL"),]
+FILE.GOEA.HSJD.sel.CU.FECAL <- FILE.GOEA.HSJD.sel[(FILE.GOEA.HSJD.sel$Disease=="CU" &
+                                                    FILE.GOEA.HSJD.sel$sample=="FECAL"),]
+
+#Recode the GROUP column names to an easy representation
+FILE.GOEA.HSJD.sel.CU.FECAL$GROUP.rec<- case_match(FILE.GOEA.HSJD.sel.CU.FECAL$GROUP, 
+           "fecal.Control.control_vs_fecal.CU.3.meses" ~ "F.C vs F.CU.3M",                           
+           "fecal.Control.control_vs_fecal.CU.6.meses" ~ "F.C vs F.CU.6M",
+           "fecal.Control.control_vs_fecal.CU.debut"~ "F.C vs F.CU.DE",
+           "fecal.CU.3.meses_vs_fecal.CU.debut"~ "F.CU.3M vs F.CU.DE",
+           "fecal.CU.6.meses_vs_fecal.CU.3.meses"~ "F.CU.6M vs F.CU.3M",
+           "fecal.CU.6.meses_vs_fecal.CU.debut"~ "F.CU.6M vs F.CU.DE",
+           .default = NA)
+
+FILE.GOEA.HSJD.sel.CU.ORAL$GROUP.rec<- case_match(FILE.GOEA.HSJD.sel.CU.ORAL$GROUP, 
+           "oral.Control.control_vs_oral.CU.3.meses" ~ "O.C vs O.CU.3M",                           
+           "oral.Control.control_vs_oral.CU.6.meses" ~ "O.C vs O.CU.6M",
+           "oral.Control.control_vs_oral.CU.debut"~ "O.C vs O.CU.DE",
+           "oral.CU.3.meses_vs_oral.CU.debut"~ "O.CU.3M vs O.CU.DE",
+           "oral.CU.3.meses_vs_oral.CU.6.meses"~ "O.CU.3M vs O.CU.6M",
+           "oral.CU.6.meses_vs_oral.CU.debut"~ "O.CU.6M vs O.CU.DE",
+           .default = NA)
+
+#Separate the ontologies in the 3 biggest groups that you can find in the ont_description column for both files
+FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function<- FILE.GOEA.HSJD.sel.CU.FECAL[(FILE.GOEA.HSJD.sel.CU.FECAL$ONT_DESCRIPTION=="molecular_function" & FILE.GOEA.HSJD.sel.CU.FECAL$EA_VALUE>0 ) ,]
+FILE.GOEA.HSJD.sel.CU.FECAL.cellular_function<- FILE.GOEA.HSJD.sel.CU.FECAL[(FILE.GOEA.HSJD.sel.CU.FECAL$ONT_DESCRIPTION=="cellular_component" & FILE.GOEA.HSJD.sel.CU.FECAL$EA_VALUE>0) ,]
+FILE.GOEA.HSJD.sel.CU.FECAL.biological_process<- FILE.GOEA.HSJD.sel.CU.FECAL[(FILE.GOEA.HSJD.sel.CU.FECAL$ONT_DESCRIPTION=="biological_process" & FILE.GOEA.HSJD.sel.CU.FECAL$EA_VALUE>0) ,]
+
+FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function<- FILE.GOEA.HSJD.sel.CU.ORAL[(FILE.GOEA.HSJD.sel.CU.ORAL$ONT_DESCRIPTION=="molecular_function" & FILE.GOEA.HSJD.sel.CU.ORAL$EA_VALUE>0 ) ,]
+FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function<- FILE.GOEA.HSJD.sel.CU.ORAL[(FILE.GOEA.HSJD.sel.CU.ORAL$ONT_DESCRIPTION=="cellular_component" & FILE.GOEA.HSJD.sel.CU.ORAL$EA_VALUE>0) ,]
+FILE.GOEA.HSJD.sel.CU.ORAL.biological_process<- FILE.GOEA.HSJD.sel.CU.ORAL[(FILE.GOEA.HSJD.sel.CU.ORAL$ONT_DESCRIPTION=="biological_process" & FILE.GOEA.HSJD.sel.CU.ORAL$EA_VALUE>0) ,]
+```
+
+RESULTADOS GENERALES DE GO
+
+```{r, out.width = '\\maxwidth'}
+
+ggplotGrid(ncol = 2,
+           lapply(c("ONT_DESCRIPTION", "sample",          "GROUP",          "GOEA_up_DOWN"),
+                  function(col) {
+                    ggplot(FILE.GOEA.HSJD.sel, aes_string(col)) + geom_bar() + coord_flip()
+                  }))
+
+
+ggplotGrid(ncol = 2,
+           lapply(c("ONT_DESCRIPTION"),
+                  function(col) {
+                    ggplot(FILE.GOEA.HSJD.sel, aes_string(col)) + geom_bar() + coord_flip()
+                  }))
+
+```
+
+Descripción GO para cada grup CU / FECAL
+
+```{r, out.width = '\\maxwidth'}
+######################################################
+#para cada grupo de CU / FECAL
+######################################################
+first_ancestor_count <- FILE.GOEA.HSJD.sel.CU.FECAL %>%
+  group_by(GROUP.rec, ONT_DESCRIPTION) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.GOEA.HSJD.sel.CU.FECAL <- merge(FILE.GOEA.HSJD.sel.CU.FECAL, first_ancestor_count, by = c("ONT_DESCRIPTION","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.CU.FECAL %>%
+  distinct(GROUP.rec,ONT_DESCRIPTION, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.GOEA.HSJD.sel.CU.FECAL <- left_join(FILE.GOEA.HSJD.sel.CU.FECAL, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.CU.FECAL <- FILE.GOEA.HSJD.sel.CU.FECAL %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.GOEA.HSJD.sel.CU.FECAL %>%
+  group_by(GROUP.rec,ONT_DESCRIPTION) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.CU.FECAL <- left_join(FILE.GOEA.HSJD.sel.CU.FECAL, mean_EA, by = c("GROUP.rec", "ONT_DESCRIPTION"))
+
+ggballoonplot((FILE.GOEA.HSJD.sel.CU.FECAL), x = "GOEA_up_DOWN", y = "ONT_DESCRIPTION", size =  "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - CU- MUESTRAS FECALES")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 5, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+
+```
+
+Descripción para CU / ORAL
+
+```{r, out.width = '\\maxwidth'}
+######################################################
+#para cada grupo de CU / ORAL
+######################################################
+
+first_ancestor_count <- FILE.GOEA.HSJD.sel.CU.ORAL %>%
+  group_by(GROUP.rec, ONT_DESCRIPTION) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.GOEA.HSJD.sel.CU.ORAL <- merge(FILE.GOEA.HSJD.sel.CU.ORAL, first_ancestor_count, by = c("ONT_DESCRIPTION","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.CU.ORAL %>%
+  distinct(GROUP.rec,ONT_DESCRIPTION, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+
+
+FILE.GOEA.HSJD.sel.CU.ORAL <- left_join(FILE.GOEA.HSJD.sel.CU.ORAL, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.CU.ORAL <- FILE.GOEA.HSJD.sel.CU.ORAL %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.GOEA.HSJD.sel.CU.ORAL %>%
+  group_by(GROUP.rec,ONT_DESCRIPTION) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.CU.ORAL <- left_join(FILE.GOEA.HSJD.sel.CU.ORAL, mean_EA, by = c("GROUP.rec", "ONT_DESCRIPTION"))
+
+ggballoonplot((FILE.GOEA.HSJD.sel.CU.ORAL), x = "GOEA_up_DOWN", y = "ONT_DESCRIPTION", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - CU- MUESTRAS ORALES")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 5, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+```
+
+Descripción para cada muestra de EC - FECAL
+
+```{r, out.width = '\\maxwidth'}
+#EC:
+
+######################################################
+#para cada grupo de EC / FECAL
+######################################################
+
+first_ancestor_count <- FILE.GOEA.HSJD.sel.EC.FECAL %>%
+  group_by(GROUP.rec, ONT_DESCRIPTION) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.GOEA.HSJD.sel.EC.FECAL <- merge(FILE.GOEA.HSJD.sel.EC.FECAL, first_ancestor_count, by = c("ONT_DESCRIPTION","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.EC.FECAL %>%
+  distinct(GROUP.rec,ONT_DESCRIPTION, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.GOEA.HSJD.sel.EC.FECAL <- left_join(FILE.GOEA.HSJD.sel.EC.FECAL, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.EC.FECAL <- FILE.GOEA.HSJD.sel.EC.FECAL %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.GOEA.HSJD.sel.EC.FECAL %>%
+  group_by(GROUP.rec,ONT_DESCRIPTION) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.EC.FECAL <- left_join(FILE.GOEA.HSJD.sel.EC.FECAL, mean_EA, by = c("GROUP.rec", "ONT_DESCRIPTION"))
+
+ggballoonplot((FILE.GOEA.HSJD.sel.EC.FECAL), x = "GOEA_up_DOWN", y = "ONT_DESCRIPTION", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - EC- MUESTRAS FECALES")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 5, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+
+```
+
+Descripción para EC- ORAL
+
+```{r, out.width = '\\maxwidth'}
+######################################################
+#para cada grupo de EC / ORAL
+######################################################
+
+first_ancestor_count <- FILE.GOEA.HSJD.sel.EC.ORAL %>%
+  group_by(GROUP.rec, ONT_DESCRIPTION) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.GOEA.HSJD.sel.EC.ORAL <- merge(FILE.GOEA.HSJD.sel.EC.ORAL, first_ancestor_count, by = c("ONT_DESCRIPTION","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.EC.ORAL %>%
+  distinct(GROUP.rec,ONT_DESCRIPTION, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.GOEA.HSJD.sel.EC.ORAL <- left_join(FILE.GOEA.HSJD.sel.EC.ORAL, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.EC.ORAL <- FILE.GOEA.HSJD.sel.EC.ORAL %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.GOEA.HSJD.sel.EC.ORAL %>%
+  group_by(GROUP.rec,ONT_DESCRIPTION) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.EC.ORAL <- left_join(FILE.GOEA.HSJD.sel.EC.ORAL, mean_EA, by = c("GROUP.rec", "ONT_DESCRIPTION"))
+
+ggballoonplot((FILE.GOEA.HSJD.sel.EC.ORAL), x = "GOEA_up_DOWN", y = "ONT_DESCRIPTION", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - EC- MUESTRAS ORALES")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 5, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+
+```
+
+## ANALISIS ESTADISTICO POR CLASES DE LA GO :
+MOLECULAR, BIOLOGICAL I CELULAR
+
+ANALISIS GO grupo CU / FECAL
+
+```{r, out.width = '\\maxwidth'}
+######################################################
+#analisis por clases de GO ---------------------------------------------------------------------------------------------------------------------
+
+#MOLECULAR, BIOLOGICAL I CELULAR
+######################################################
+
+#recode group names
+
+ggplotGrid(ncol = 2,
+           lapply(c("ONT_DESCRIPTION"),
+                  function(col) {
+                    ggplot(FILE.GOEA.HSJD.sel.CU.FECAL, aes_string(col)) + geom_bar() + coord_flip()
+                  }))
+
+ONTOLOGY_count <- FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function %>%
+  group_by(GROUP.rec, ONTOLOGY) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function <- merge(FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function, ONTOLOGY_count, by = c("ONTOLOGY","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function %>%
+  distinct(GROUP.rec,ONTOLOGY, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function <- left_join(FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function <- FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function %>%
+  mutate(gene_rate = count / total_counts)
+
+
+mean_EA <- FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function %>%
+  group_by(GROUP.rec,ONTOLOGY) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function <- left_join(FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function, mean_EA, by = c("GROUP.rec", "ONTOLOGY"))
+
+#HAY 647
+ggballoonplot((FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function), x = "GOEA_up_DOWN", y = "ONTOLOGY", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  theme(axis.text=element_text(size=5))+ scale_fill_viridis_c(option = "C") +  labs( y= "GOEA MF",
+                                                                                   x= "UP/DOWN",
+                                                                                 title="GOEA ontologies - CU- MUESTRAS FECALES molecular_function")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#calculate frequency of position, grouped by team
+#library(dplyr)
+#aaa<-FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function.txt", sep = "\t",            row.names = FALSE)
+
+#crear unas tabla de frecuencias con porcentajes para cada ontology, dividido por up y down, ordenado por la frecuencia y quizas por E y FDR
+table(FILE.GOEA.HSJD.sel.CU.FECAL.molecular_function$ONTOLOGY)
+
+ONTOLOGY_count <- FILE.GOEA.HSJD.sel.CU.FECAL.cellular_function %>%
+  group_by(GROUP.rec, ONTOLOGY) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.GOEA.HSJD.sel.CU.FECAL.cellular_function <- merge(FILE.GOEA.HSJD.sel.CU.FECAL.cellular_function, ONTOLOGY_count, by = c("ONTOLOGY","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.CU.FECAL.cellular_function %>%
+  distinct(GROUP.rec,ONTOLOGY, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.GOEA.HSJD.sel.CU.FECAL.cellular_function <- left_join(FILE.GOEA.HSJD.sel.CU.FECAL.cellular_function, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.CU.FECAL.cellular_function <- FILE.GOEA.HSJD.sel.CU.FECAL.cellular_function %>%
+  mutate(gene_rate = count / total_counts)
+
+
+mean_EA <- FILE.GOEA.HSJD.sel.CU.FECAL.cellular_function %>%
+  group_by(GROUP.rec,ONTOLOGY) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.CU.FECAL.cellular_function <- left_join(FILE.GOEA.HSJD.sel.CU.FECAL.cellular_function, mean_EA, by = c("GROUP.rec", "ONTOLOGY"))
+
+
+ggballoonplot((FILE.GOEA.HSJD.sel.CU.FECAL.cellular_function), x = "GOEA_up_DOWN", y = "ONTOLOGY", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA CF",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - CU- MUESTRAS FECALES cellular_function")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#calculate frequency of position, grouped by team
+#aaa<-FILE.GOEA.HSJD.sel.CU.FECAL.cellular_function %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.CU.FECAL.cellular_function.txt", sep = "\t",            row.names = FALSE)
+
+ONTOLOGY_count <- FILE.GOEA.HSJD.sel.CU.FECAL.biological_process %>%
+  group_by(GROUP.rec, ONTOLOGY) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.GOEA.HSJD.sel.CU.FECAL.biological_process <- merge(FILE.GOEA.HSJD.sel.CU.FECAL.biological_process, ONTOLOGY_count, by = c("ONTOLOGY","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.CU.FECAL.biological_process %>%
+  distinct(GROUP.rec,ONTOLOGY, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.GOEA.HSJD.sel.CU.FECAL.biological_process <- left_join(FILE.GOEA.HSJD.sel.CU.FECAL.biological_process, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.CU.FECAL.biological_process <- FILE.GOEA.HSJD.sel.CU.FECAL.biological_process %>%
+  mutate(gene_rate = count / total_counts)
+
+
+mean_EA <- FILE.GOEA.HSJD.sel.CU.FECAL.biological_process %>%
+  group_by(GROUP.rec,ONTOLOGY) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.CU.FECAL.biological_process <- left_join(FILE.GOEA.HSJD.sel.CU.FECAL.biological_process, mean_EA, by = c("GROUP.rec", "ONTOLOGY"))
+
+
+ggballoonplot((FILE.GOEA.HSJD.sel.CU.FECAL.biological_process), x = "GOEA_up_DOWN", y = "ONTOLOGY", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA BP",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - CU- MUESTRAS FECALES biological_process")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+
+#calculate frequency of position, grouped by team
+#aaa<-FILE.GOEA.HSJD.sel.CU.FECAL.biological_process %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.CU.FECAL.biological_process.txt", sep = "\t",            row.names = FALSE)
+
+```
+
+GO para cada grupo de CU / ORAL
+
+```{r, out.width = '\\maxwidth'}
+#para cada grupo de CU / ORAL
+
+ggplotGrid(ncol = 2,
+           lapply(c("ONT_DESCRIPTION"),
+                  function(col) {
+                    ggplot(FILE.GOEA.HSJD.sel.CU.ORAL, aes_string(col)) + geom_bar() + coord_flip()
+                  }))
+
+
+
+
+ggballoonplot((FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function), x = "GOEA_up_DOWN", y = "ONTOLOGY", size = "EA_VALUE",
+              fill = "EA_VALUE", facet.by = "GROUP",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - CU- MUESTRAS ORALES molecular_function")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#aaa<-FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function.txt", sep = "\t",            row.names = FALSE)
+
+
+
+ggballoonplot((FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function), x = "GOEA_up_DOWN", y = "ONTOLOGY", size = "EA_VALUE",
+              fill = "EA_VALUE", facet.by = "GROUP",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - CU- MUESTRAS ORALES cellular_function")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+
+#aaa<-FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function.txt", sep = "\t",            row.names = FALSE)
+
+
+
+ggballoonplot((FILE.GOEA.HSJD.sel.CU.ORAL.biological_process), x = "GOEA_up_DOWN", y = "ONTOLOGY", size = "EA_VALUE",
+              fill = "EA_VALUE", facet.by = "GROUP",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - CU- MUESTRAS ORALES biological_process")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#aaa<-FILE.GOEA.HSJD.sel.CU.ORAL.biological_process %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.CU.ORAL.biological_process.txt", sep = "\t",            row.names = FALSE)
+
+```
+
+ANALISIS PARA para cada grupo de EC / FECAL
+
+```{r, out.width = '\\maxwidth'}
+#EC:
+
+ggplotGrid(ncol = 2,
+           lapply(c("ONT_DESCRIPTION"),
+                  function(col) {
+                    ggplot(FILE.GOEA.HSJD.sel.EC.FECAL, aes_string(col)) + geom_bar() + coord_flip()
+                  }))
+
+
+
+
+ggballoonplot((FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function), x = "GOEA_up_DOWN", y = "ONTOLOGY", size = "EA_VALUE",
+              fill = "EA_VALUE", facet.by = "GROUP",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - EC- MUESTRAS FECALES molecular_function")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#aaa<-FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function.txt", sep = "\t",            row.names = FALSE)
+
+
+#table(FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function$ONTOLOGY, FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function$GROUP)
+
+ggballoonplot((FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function), x = "GOEA_up_DOWN", y = "ONTOLOGY", size = "EA_VALUE",
+              fill = "EA_VALUE", facet.by = "GROUP",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - EC- MUESTRAS FECALES cellular_function")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#aaa<-FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function.txt", sep = "\t",            row.names = FALSE)
+
+
+ggballoonplot((FILE.GOEA.HSJD.sel.EC.FECAL.biological_process), x = "GOEA_up_DOWN", y = "ONTOLOGY", size = "EA_VALUE",
+              fill = "EA_VALUE", facet.by = "GROUP",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - EC- MUESTRAS FECALES biological_process")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#aaa<-FILE.GOEA.HSJD.sel.EC.FECAL.biological_process %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.EC.FECAL.biological_process.txt", sep = "\t",            row.names = FALSE)
+
+```
+
+ANALISIS para cada grupo de EC / ORAL
+
+```{r, out.width = '\\maxwidth'}
+#para cada grupo de EC / ORAL
+
+ggplotGrid(ncol = 2,
+           lapply(c("ONT_DESCRIPTION"),
+                  function(col) {
+                    ggplot(FILE.GOEA.HSJD.sel.EC.ORAL, aes_string(col)) + geom_bar() + coord_flip()
+                  }))+
+    # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+
+
+ggballoonplot((FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function), x = "GOEA_up_DOWN", y = "ONTOLOGY", size = "EA_VALUE",
+              fill = "EA_VALUE", facet.by = "GROUP",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - EC- MUESTRAS ORALES molecular_function") +
+    # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#aaa<-FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function.txt", sep = "\t",            row.names = FALSE)
+
+
+
+ggballoonplot((FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function), x = "GOEA_up_DOWN", y = "ONTOLOGY", size = "EA_VALUE",
+              fill = "EA_VALUE", facet.by = "GROUP",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - EC- MUESTRAS ORALES cellular_function") +
+    # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#aaa<-FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function.txt", sep = "\t",            row.names = FALSE)
+
+
+ggballoonplot((FILE.GOEA.HSJD.sel.EC.ORAL.biological_process), x = "GOEA_up_DOWN", y = "ONTOLOGY", size = "EA_VALUE",
+              fill = "EA_VALUE", facet.by = "GROUP",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - EC- MUESTRAS ORALES biological_process") +
+    # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#aaa<-FILE.GOEA.HSJD.sel.EC.ORAL.biological_process %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.EC.ORAL.biological_process.txt", sep = "\t",            row.names = FALSE)
+
+```
+
+```{r, out.width = '\\maxwidth'}
+#para segundo ancestor de EC / ORAL
+ggplotGrid(
+           lapply(c("first_ancestor_name"),
+                  function(col) {
+                    ggplot(FILE.GOEA.HSJD.sel.EC.ORAL, aes_string(col)) + geom_bar() + coord_flip()
+                  }))+
+    # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+
+first_ancestor_count <- FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function with first_ancestor_count
+FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function <- merge(FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function, first_ancestor_count, by = c("first_ancestor_name","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function %>%
+  distinct(GROUP.rec,first_ancestor_name, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function <- left_join(FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function <- FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function <- left_join(FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function, mean_EA, by = c("GROUP.rec", "first_ancestor_name"))
+
+
+ggballoonplot((FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function), x = "GOEA_up_DOWN", y = "first_ancestor_name", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - EC- MUESTRAS ORALES molecular_function") +
+    # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#aaa<-FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function.txt", sep = "\t",            row.names = FALSE)
+
+first_ancestor_count_2 <- FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function <- merge(FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function, first_ancestor_count_2, by = c("first_ancestor_name","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function %>%
+  distinct(GROUP.rec,first_ancestor_name, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function <- left_join(FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function <- FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function <- left_join(FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function, mean_EA, by = c("GROUP.rec", "first_ancestor_name"))
+
+ggballoonplot((FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function), x = "GOEA_up_DOWN", y = "first_ancestor_name", size = "EA_VALUE",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - EC- MUESTRAS ORALES cellular_function") +
+    # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#aaa<-FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function.txt", sep = "\t",            row.names = FALSE)
+
+first_ancestor_count_3 <- FILE.GOEA.HSJD.sel.EC.ORAL.biological_process %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.GOEA.HSJD.sel.EC.ORAL.biological_process <- merge(FILE.GOEA.HSJD.sel.EC.ORAL.biological_process, first_ancestor_count_3, by = c("first_ancestor_name","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.EC.ORAL.biological_process %>%
+  distinct(GROUP.rec,first_ancestor_name, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.GOEA.HSJD.sel.EC.ORAL.biological_process <- left_join(FILE.GOEA.HSJD.sel.EC.ORAL.biological_process, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.EC.ORAL.biological_process <- FILE.GOEA.HSJD.sel.EC.ORAL.biological_process %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.GOEA.HSJD.sel.EC.ORAL.biological_process %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.EC.ORAL.biological_process <- left_join(FILE.GOEA.HSJD.sel.EC.ORAL.biological_process, mean_EA, by = c("GROUP.rec", "first_ancestor_name"))
+
+
+ggballoonplot((FILE.GOEA.HSJD.sel.EC.ORAL.biological_process), x = "GOEA_up_DOWN", y = "first_ancestor_name", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - EC- MUESTRAS ORALES biological_process") +
+    # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+ #aaa<-FILE.GOEA.HSJD.sel.EC.ORAL.biological_process %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.EC.ORAL.biological_process.txt", sep = "\t",            row.names = FALSE)
+
+```
+
+ANALISIS para cada grupo de EC / FECAL
+
+```{r, out.width = '\\maxwidth'}
+#para cada grupo de EC / ORAL
+ggplotGrid(lapply(c("first_ancestor_name"),
+                  function(col) {
+                    ggplot(FILE.GOEA.HSJD.sel.EC.FECAL, aes_string(col)) + geom_bar() + coord_flip()
+                  }))+
+    # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+
+first_ancestor_count <- FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function <- merge(FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function, first_ancestor_count, by = c("first_ancestor_name","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function %>%
+  distinct(GROUP.rec,first_ancestor_name, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function <- left_join(FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function <- FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function <- left_join(FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function, mean_EA, by = c("GROUP.rec", "first_ancestor_name"))
+
+
+ggballoonplot((FILE.GOEA.HSJD.sel.EC.FECAL.molecular_function), x = "GOEA_up_DOWN", y = "first_ancestor_name", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - EC- MUESTRAS ORALES molecular_function") +
+    # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#aaa<-FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.EC.ORAL.molecular_function.txt", sep = "\t",            row.names = FALSE)
+
+
+first_ancestor_count <- FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function <- merge(FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function, first_ancestor_count, by = c("first_ancestor_name","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function %>%
+  distinct(GROUP.rec,first_ancestor_name, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function <- left_join(FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function <- FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function <- left_join(FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function, mean_EA, by = c("GROUP.rec", "first_ancestor_name"))
+
+ggballoonplot((FILE.GOEA.HSJD.sel.EC.FECAL.cellular_function), x = "GOEA_up_DOWN", y = "first_ancestor_name", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - EC- MUESTRAS ORALES cellular_function") +
+    # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#aaa<-FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function.txt", sep = "\t",            row.names = FALSE)
+
+
+first_ancestor_count <- FILE.GOEA.HSJD.sel.EC.FECAL.biological_process %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.GOEA.HSJD.sel.EC.FECAL.biological_process <- merge(FILE.GOEA.HSJD.sel.EC.FECAL.biological_process, first_ancestor_count, by = c("first_ancestor_name","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.EC.FECAL.biological_process %>%
+  distinct(GROUP.rec,first_ancestor_name, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.GOEA.HSJD.sel.EC.FECAL.biological_process <- left_join(FILE.GOEA.HSJD.sel.EC.FECAL.biological_process, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.EC.FECAL.biological_process <- FILE.GOEA.HSJD.sel.EC.FECAL.biological_process %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.GOEA.HSJD.sel.EC.FECAL.biological_process %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.EC.FECAL.biological_process <- left_join(FILE.GOEA.HSJD.sel.EC.FECAL.biological_process, mean_EA, by = c("GROUP.rec", "first_ancestor_name"))
+
+ggballoonplot((FILE.GOEA.HSJD.sel.EC.FECAL.biological_process), x = "GOEA_up_DOWN", y = "first_ancestor_name", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - EC- MUESTRAS ORALES biological_process") +
+    # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#aaa<-FILE.GOEA.HSJD.sel.EC.ORAL.biological_process %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.EC.ORAL.biological_process.txt", sep = "\t",            row.names = FALSE)
+
+```
+
+GO para cada grupo de CU / ORAL
+
+```{r, out.width = '\\maxwidth'}
+#para cada grupo de CU / ORAL
+
+ggplotGrid(lapply(c("first_ancestor_name"),
+                  function(col) {
+                    ggplot(FILE.GOEA.HSJD.sel.CU.ORAL, aes_string(col)) + geom_bar() + coord_flip()
+                  }))
+
+first_ancestor_count <- FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function <- merge(FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function, first_ancestor_count, by = c("first_ancestor_name","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function %>%
+  distinct(GROUP.rec,first_ancestor_name, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function <- left_join(FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function <- FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function <- left_join(FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function, mean_EA, by = c("GROUP.rec", "first_ancestor_name"))
+
+
+ggballoonplot((FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function), x = "GOEA_up_DOWN", y = "first_ancestor_name", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - CU- MUESTRAS ORALES molecular_function")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#aaa<-FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.CU.ORAL.molecular_function.txt", sep = "\t",            row.names = FALSE)
+
+first_ancestor_count <- FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function <- merge(FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function, first_ancestor_count, by = c("first_ancestor_name","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function %>%
+  distinct(GROUP.rec,first_ancestor_name, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function <- left_join(FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function <- FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function <- left_join(FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function, mean_EA, by = c("GROUP.rec", "first_ancestor_name"))
+
+ggballoonplot((FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function), x = "GOEA_up_DOWN", y = "first_ancestor_name", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - CU- MUESTRAS ORALES cellular_function")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 8, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+
+#aaa<-FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.CU.ORAL.cellular_function.txt", sep = "\t",            row.names = FALSE)
+
+
+first_ancestor_count <- FILE.GOEA.HSJD.sel.CU.ORAL.biological_process %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(count = n())
+# Merge FILE.GOEA.HSJD.sel.EC.ORAL.cellular_function with first_ancestor_count_2
+FILE.GOEA.HSJD.sel.CU.ORAL.biological_process <- merge(FILE.GOEA.HSJD.sel.CU.ORAL.biological_process, first_ancestor_count, by = c("first_ancestor_name","GROUP.rec"), all.x = TRUE)
+
+unique_combinations <- FILE.GOEA.HSJD.sel.CU.ORAL.biological_process %>%
+  distinct(GROUP.rec,first_ancestor_name, .keep_all = TRUE) %>%
+  group_by(GROUP.rec) %>%
+  summarise(total_counts = sum(count))
+
+FILE.GOEA.HSJD.sel.CU.ORAL.biological_process <- left_join(FILE.GOEA.HSJD.sel.CU.ORAL.biological_process, unique_combinations, by = "GROUP.rec")
+
+FILE.GOEA.HSJD.sel.CU.ORAL.biological_process <- FILE.GOEA.HSJD.sel.CU.ORAL.biological_process %>%
+  mutate(gene_rate = count / total_counts)
+
+mean_EA <- FILE.GOEA.HSJD.sel.CU.ORAL.biological_process %>%
+  group_by(GROUP.rec,first_ancestor_name) %>%
+  summarise(mean_EA_VALUE = mean(EA_VALUE, na.rm = TRUE))
+
+
+
+# Merge con el dataset original
+FILE.GOEA.HSJD.sel.CU.ORAL.biological_process <- left_join(FILE.GOEA.HSJD.sel.CU.ORAL.biological_process, mean_EA, by = c("GROUP.rec", "first_ancestor_name"))
+
+ggballoonplot((FILE.GOEA.HSJD.sel.CU.ORAL.biological_process), x = "GOEA_up_DOWN", y = "first_ancestor_name", size = "gene_rate",
+              fill = "mean_EA_VALUE", facet.by = "GROUP.rec",
+              ggtheme = theme_bw()) +  scale_fill_viridis_c(option = "C") +  labs( y= "GOEA ontologies MUESTRAL ORALES",
+                                                                                   x= "UP/DOWN",
+                                                                                   title="GOEA ontologies - CU- MUESTRAS ORALES biological_process")+
+  # Change the appearance of titles and labels
+ font("title", size = 8, color = "red", face = "bold.italic")+
+ font("subtitle", size = 10, color = "orange")+
+ font("caption", size = 5, color = "orange")+
+ font("xlab", size = 5, color = "blue")+
+ font("ylab", size = 10, color = "red", face = "bold")+
+ font("xy.text", size = 2, color = "#993333", face = "bold") +
+
+# Change the appearance of legend title and texts
+ font("legend.title", color = "blue", face = "bold")+
+ font("legend.text", color = "red")
+#aaa<-FILE.GOEA.HSJD.sel.CU.ORAL.biological_process %>%  group_by(GROUP, GOEA_up_DOWN,ONTOLOGY) %>%  summarize(Mean = mean(EA_VALUE, na.rm=TRUE) ) %>%
+#  arrange(GROUP, GOEA_up_DOWN, desc(Mean))
+#write.table(aaa, file = "FILE.GOEA.HSJD.sel.CU.ORAL.biological_process.txt", sep = "\t",            row.names = FALSE)
+
+```
+
